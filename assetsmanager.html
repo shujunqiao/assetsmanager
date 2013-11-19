@@ -1,0 +1,277 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<style>
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+blockquote {
+    margin: 0;
+    padding: 0;
+}
+body {
+    font-family: "Helvetica Neue", Helvetica, "Hiragino Sans GB", Arial, sans-serif;
+    font-size: 13px;
+    line-height: 18px;
+    color: #737373;
+    background-color: white;
+    margin: 10px 13px 10px 13px;
+}
+table {
+	margin: 10px 0 15px 0;
+	border-collapse: collapse;
+}
+td,th {	
+	border: 1px solid #ddd;
+	padding: 3px 10px;
+}
+th {
+	padding: 5px 10px;	
+}
+
+a {
+    color: #0069d6;
+}
+a:hover {
+    color: #0050a3;
+    text-decoration: none;
+}
+a img {
+    border: none;
+}
+p {
+    margin-bottom: 9px;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    color: #404040;
+    line-height: 36px;
+}
+h1 {
+    margin-bottom: 18px;
+    font-size: 30px;
+}
+h2 {
+    font-size: 24px;
+}
+h3 {
+    font-size: 18px;
+}
+h4 {
+    font-size: 16px;
+}
+h5 {
+    font-size: 14px;
+}
+h6 {
+    font-size: 13px;
+}
+hr {
+    margin: 0 0 19px;
+    border: 0;
+    border-bottom: 1px solid #ccc;
+}
+blockquote {
+    padding: 13px 13px 21px 15px;
+    margin-bottom: 18px;
+    font-family:georgia,serif;
+    font-style: italic;
+}
+blockquote:before {
+    content:"\201C";
+    font-size:40px;
+    margin-left:-10px;
+    font-family:georgia,serif;
+    color:#eee;
+}
+blockquote p {
+    font-size: 14px;
+    font-weight: 300;
+    line-height: 18px;
+    margin-bottom: 0;
+    font-style: italic;
+}
+code, pre {
+    font-family: Monaco, Andale Mono, Courier New, monospace;
+}
+code {
+    background-color: #fee9cc;
+    color: rgba(0, 0, 0, 0.75);
+    padding: 1px 3px;
+    font-size: 12px;
+    -webkit-border-radius: 3px;
+    -moz-border-radius: 3px;
+    border-radius: 3px;
+}
+pre {
+    display: block;
+    padding: 14px;
+    margin: 0 0 18px;
+    line-height: 16px;
+    font-size: 11px;
+    border: 1px solid #d9d9d9;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+pre code {
+    background-color: #fff;
+    color:#737373;
+    font-size: 11px;
+    padding: 0;
+}
+sup {
+    font-size: 0.83em;
+    vertical-align: super;
+    line-height: 0;
+}
+* {
+	-webkit-print-color-adjust: exact;
+}
+@media screen and (min-width: 914px) {
+    body {
+        width: 854px;
+        margin:10px auto;
+    }
+}
+@media print {
+	body,code,pre code,h1,h2,h3,h4,h5,h6 {
+		color: black;
+	}
+	table, pre {
+		page-break-inside: avoid;
+	}
+}
+</style>
+<title>**关于assetsmanager的几个小问题：**</title>
+
+</head>
+<body>
+<h3><strong>关于assetsmanager的几个小问题：</strong></h3>
+
+<h6>1: 为什么要在线更新资源和脚本文件！？</h6>
+
+<pre><code>简单概括，如果你的项目已经在google play 或Apple Store 等平台上架了，那么当你项目需要做一些活动或者修改前端的一些代码等那么你需要重新提交一个新版本给平台，这时候你的上架时候是个不确定的时候，具体什么时候能上架，主要跟平台有关，你再着急，也没有用的。
+
+那么如果你的项目是使用脚本语言进行编写的，例如lua，js等等，那么一旦你有需要更新你的项目，你完全可以通过从服务器下载最新的脚本和资源来实现在线更新，免去很多烦恼,至少更新再也不需要平台的审核来限制了。
+</code></pre>
+
+<h6>2：如果我版本号不变，资源改变了，会有更新吗？</h6>
+
+<pre><code>是依据版本号判断是否更新，版本号不变，则不更新。
+</code></pre>
+
+<h6>3：版本号有改变，资源更新了一部分。这样assetsmanager在更新的时候是只下这部分资源还是整个都下载？</h6>
+
+<pre><code>某个资源应该是全部更新而不是增量更新。
+增量更新的实现是资源分多个  每个有自己的版本号。
+</code></pre>
+
+<h6>4: AssetsManager的基本流程：</h6>
+
+<pre><code>(1. 配置需要更新的zip的URL，更新版本号的URL，更新存放的相对路径
+
+(2. 从Server获取该zip文件的版本号
+
+(3. 对比Client中的UserDefault.xml中current-version-code键的值(当前版本号)是否过期
+
+(4. 若Server的版本比Client的新，则通过http请求下载该zip
+
+(5. 解压缩该zip文件
+
+(6. 下载后通过CCFileUtils的fullPathForFilename方法来获取文件的引用
+</code></pre>
+
+<h6>5:下载流程也就是更新流程update()：</h6>
+
+<pre><code>(1. 配置的zip的URL和version的URL必须合法，且非空
+
+(2. 检验Server是否存在新版本
+
+(3. 读取UserDefault.xml的downloaded-version-code，对比当前版本号，若不相等则进行zip包下载
+
+(4. 若下载完成，记录最新的版本号于UserDefault.xml的downloaded-version-code中，并flush刷新
+
+(5. 解压缩zip包
+
+(6. 若解压成功，记录最新的版本号于UserDefault.xml的current-version-code中，并把downloaded-version-code删除，并flush刷新
+
+(7. 设置搜索路径，(先获取搜索路径vector，然后将新的搜索路径插入到该vector中，将该vector重新放入CCFileUtils中)
+
+(8. 删除未加载的cocos2dx-update-temp-package.zip文件
+</code></pre>
+
+<h6>6: 创建项目：使用PROJECT-CREATOR 创建一个JAVASCRIPT或者LUA项目(这里以JS为例)。</h6>
+
+<pre><code>./create_project.py -project gamea -package com.mygame.game -language javascript
+</code></pre>
+
+<h6>7: 添加更新类</h6>
+
+<pre><code>这里是UpdateLayer.
+class UpdateLayer : public cocos2d::Layer, public cocos2d::extension::AssetsManagerDelegateProtocol
+
+初始化: assetsmanager、界面、创建下载目录。
+1：）button点击事件触发的三个函数。
+update;     //更新
+reset;  //重置
+enter;  //进入游戏
+2：）更新之时返回的三个函数。
+onError;    //更新出错时的返回
+onProgress; //更新的进度
+onSuccess;  //更新成功
+</code></pre>
+
+<h6>8: 多个资源的更新示例</h6>
+
+<pre><code>1: 把一个assetManager改为多个
+AssetsManager* pAssetsManager;  
+//--&gt;
+AssetsManager* arrAssetsManager[3];
+
+2: 初始化也是多个
+/** Creates assets manager */
+pAssetsManager = new AssetsManager("https://raw.github.com/shujunqiao/AssetsManagerTest/master/package.zip",
+"https://raw.github.com/shujunqiao/AssetsManagerTest/master/version",
+pathToSave.c_str());
+pAssetsManager-&gt;setDelegate(this);
+pAssetsManager-&gt;setConnectionTimeout(3);
+addChild(pAssetsManager);
+pAssetsManager-&gt;release();  
+//--&gt;
+for (int i=0; i&lt;3; i++) {
+    AssetsManager* assetManager = new   AssetsManager(arrResVersion[i*2].c_str(), arrResVersion[i*2+1].c_str(), pathToSave.c_str());
+    assetManager-&gt;setDelegate(this);
+    assetManager-&gt;setConnectionTimeout(3);
+    addChild(assetManager);
+    arrAssetsManager[i] = assetManager;
+}
+3: 在更新完成后做的事情不同,也就是onSuccess 的时候做的动作不一样。
+//只有一个资源的时候，就简单的显示了一下下载完成，然后切换界面就可以了。
+pProgressLabel-&gt;setString("download ok");
+//--&gt;
+//多个资源的话，就要检查下一个资源是否要更新了，然后等所有资源都更新完了，再切换界面。
+updateRes();    //我这里用了这个函数，大家可以自行发挥这个函数怎么写就可以了。
+{
+    if (topIndex&lt;0) {
+        return;
+    }
+    if (topIndex==3) {
+        enter(NULL);
+        return;
+    }
+    arrAssetsManager[topIndex]-&gt;update();   //check下一个资源是否要更新。
+    topIndex ++;
+}
+</code></pre>
+</body>
+</html>
