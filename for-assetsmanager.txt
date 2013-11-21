@@ -1,0 +1,119 @@
+#"note"
+
+关于assetsmanager的几个小问题：
+1: 为什么要在线更新资源和脚本文件！？
+	简单概括，如果你的项目已经在google play 或Apple Store 等平台上架了，那么当你项目需要做一些活动或者修改前端的一些代码等那么你需要重新提交一个新版本给平台，这时候你的上架时候是个不确定的时候，具体什么时候能上架，主要跟平台有关，你再着急，也没有用的。
+
+	那么如果你的项目是使用脚本语言进行编写的，例如lua，js等等，那么一旦你有需要更新你的项目，你完全可以通过从服务器下载最新的脚本和资源来实现在线更新，免去很多烦恼,至少更新再也不需要平台的审核来限制了。
+2：如果我版本号不变，资源改变了，会有更新吗？
+	是依据版本号判断是否更新，版本号不变，则不更新。
+3：版本号有改变，资源更新了一部分。这样assetsmanager在更新的时候是只下这部分资源还是整个都下载？
+	某个资源应该是全部更新而不是增量更新。
+	增量更新的实现是资源分多个  每个有自己的版本号。
+4: AssetsManager的基本流程：
+	(1. 配置需要更新的zip的URL，更新版本号的URL，更新存放的相对路径
+
+	(2. 从Server获取该zip文件的版本号
+
+	(3. 对比Client中的UserDefault.xml中current-version-code键的值(当前版本号)是否过期
+
+	(4. 若Server的版本比Client的新，则通过http请求下载该zip
+
+	(5. 解压缩该zip文件
+
+	(6. 下载后通过CCFileUtils的fullPathForFilename方法来获取文件的引用
+5:下载流程也就是更新流程update()：
+	(1. 配置的zip的URL和version的URL必须合法，且非空
+
+	(2. 检验Server是否存在新版本
+
+	(3. 读取UserDefault.xml的downloaded-version-code，对比当前版本号，若不相等则进行zip包下载
+
+	(4. 若下载完成，记录最新的版本号于UserDefault.xml的downloaded-version-code中，并flush刷新
+
+	(5. 解压缩zip包
+
+	(6. 若解压成功，记录最新的版本号于UserDefault.xml的current-version-code中，并把downloaded-version-code删除，并flush刷新
+
+	(7. 设置搜索路径，(先获取搜索路径vector，然后将新的搜索路径插入到该vector中，将该vector重新放入CCFileUtils中)
+
+	(8. 删除未加载的cocos2dx-update-temp-package.zip文件
+
+6: 创建项目：使用project-creator 创建一个JavaScript或者lua项目(这里以js为例)。
+	./create_project.py -project gamea -package com.mygame.game -language javascript
+
+7: 添加更新类
+	这里是UpdateLayer.
+	class UpdateLayer : public cocos2d::Layer, public cocos2d::extension::AssetsManagerDelegateProtocol
+
+	初始化: assetsmanager、界面、创建下载目录。
+	1：）button点击事件触发的三个函数。
+	update;		//更新
+	reset;	//重置
+	enter;	//进入游戏
+	2：）更新之时返回的三个函数。
+	onError;	//更新出错时的返回
+	onProgress;	//更新的进度
+	onSuccess;	//更新成功
+
+8: 多个资源的更新示例
+    //AssetsManager* pAssetsManager;
+    AssetsManager* arrAssetsManager[3];
+
+    /** Creates assets manager */
+//    pAssetsManager = new AssetsManager("https://raw.github.com/shujunqiao/AssetsManagerTest/master/package.zip",
+//                                       "https://raw.github.com/shujunqiao/AssetsManagerTest/master/version",
+//                                       pathToSave.c_str());
+//    pAssetsManager->setDelegate(this);
+//    pAssetsManager->setConnectionTimeout(3);
+//    addChild(pAssetsManager);
+//    pAssetsManager->release();
+    for (int i=0; i<3; i++) {
+        AssetsManager* assetManager = new AssetsManager(arrResVersion[i*2].c_str(),
+                                                        arrResVersion[i*2+1].c_str(),
+                                                        pathToSave.c_str());
+        assetManager->setDelegate(this);
+        assetManager->setConnectionTimeout(3);
+        addChild(assetManager);
+        arrAssetsManager[i] = assetManager;
+        //assetManager->release();
+    }
+
+	onSuccess 的时候做的动作不一样。
+	只有一个资源的时候，就简单的显示了一下下载完成，然后切换界面就可以了。
+	pProgressLabel->setString("download ok");
+	多个资源的话，就要检查下一个资源是否要更新了，然后等所有资源都更新完了，再切换界面。
+	updateRes();	//我这里用了这个函数，大家可以自行发挥这个函数怎么写就行。
+	{
+	    if (topIndex<0) {
+	        return;
+	    }
+	    if (topIndex==3) {
+	        enter(NULL);
+	        return;
+	    }
+	    arrAssetsManager[topIndex]->update();	//check下一个资源是否要更新。
+	    topIndex ++;
+	}
+
+9：对于进入不同场景，有些图片，诸如怪物、装备等，创建的时候用一个默认图片代替，同时网络请求这些图片，加载好图片后替换过来。
+	通过cc.TextureCache.getInstance().addImageAsync，来实现。（在线替换资源）；
+
+10: 个人感觉Assetsmanager使用不方便的地方
+	（1：假如这个zip里面就改动了一点，但是版本号发生改变了，这时要下载这个zip的所有文件，感觉不太方便。
+	（2：需要手动配置版本号，当资源比较多，版本控制也比较多的时候，更新版本号，就是一件麻烦的事情。
+	（3：这个机制不够完整，过于简单。
+	
+11：关于工具
+	大家的一些想法
+	有人说如果我们可以根据常见的使用场景，设计几套解决方案，然后关键步骤上提供相应的工具，开发者就很爽歪歪了。
+	还有人说如果有一套完整方案，用户只要接入这个方案，简单的调用某个类或者其他，再通过工具配置服务端，就可以实现动态更新了，这样会比较方便好用，比较有市场。
+
+	张传伟童鞋之前做过一个在线更新的工具，有比较完整的功能：
+	比如从100版本升级到110版本
+	（1：生成10个差异包（100-110，101-110，..，109-110），资源部分只需要一个版本号，也只需要更新不同的部分（下载添加和修改的部分，删除不需要的部分）。
+	（2：对各个资源分为两部分配置：一部分是直接更新，一部分是进入相关场景进行在线更新。
+	（3：对各个渠道做相关资源配置。
+
+
+
